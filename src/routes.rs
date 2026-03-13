@@ -20,6 +20,12 @@ pub fn build_router(config: Config, prom_handle: PrometheusHandle) -> Router {
         .route("/health", get(health_check))
         .route("/metrics", get(prometheus_metrics));
 
+    let public = Router::new()
+        .route("/api/v1/account/auth/register", any(proxy::forward_to_account))
+        .route("/api/v1/account/auth/login", any(proxy::forward_to_account))
+        .route("/api/v1/account/auth/refresh", any(proxy::forward_to_account))
+        .route_layer(axum_mw::from_fn_with_state(limiter.clone(), rate_limit_middleware));
+
     let protected = Router::new()
         .route("/api/v1/account/*path", any(proxy::forward_to_account))
         .route("/api/v1/app/*path", any(proxy::forward_to_app))
@@ -29,6 +35,7 @@ pub fn build_router(config: Config, prom_handle: PrometheusHandle) -> Router {
 
     Router::new()
         .merge(health)
+        .merge(public)
         .merge(protected)
         .layer(axum_mw::from_fn(metrics_middleware))
         .layer(Extension(prom_handle))

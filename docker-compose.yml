@@ -1,0 +1,15 @@
+services:
+  api-gateway:
+    build: .
+    container_name: hamr-api-gateway
+    restart: unless-stopped
+    environment:
+      PORT: ${PORT:-8090}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      ACCOUNT_SERVICE_URL: ${ACCOUNT_SERVICE_URL:-http://hamr-account-api:3001}
+      APP_SERVICE_URL: ${APP_SERVICE_URL:-http://hamr-app-api:3002}
+      JIABU_SERVICE_URL: ${JIABU_SERVICE_URL:-http://hamr-jiabu-api:3003}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-60}
+      RUST_LOG: ${RUST_LOG:-info}
+    ports:
+      - "8090:8090"
