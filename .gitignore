@@ -1,1 +1,26 @@
 /target
+
+# === Optimized Gitignore Additions ===
+.DS_Store
+.AppleDouble
+.LSOverride
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+*.log
+*.tmp
+*.bak
+/target/
+**/*.rs.bk
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
