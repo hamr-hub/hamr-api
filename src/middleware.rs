@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use axum::{
-    extract::{Request, State},
+    extract::{ConnectInfo, Request, State},
     middleware::Next,
     response::Response,
 };
@@ -82,15 +82,38 @@ pub async fn rate_limit_middleware(
     request: Request,
     next: Next,
 ) -> Result<Response, GatewayError> {
+    // Key priority:
+    //   1. JWT sub from auth_middleware (most accurate per-user)
+    //   2. ConnectInfo peer addr (real socket addr, not spoofable)
+    //   3. X-Forwarded-For last segment (only useful when behind a
+    //      trusted proxy that overwrites the header; caller must verify
+    //      proxy chain at deploy time)
+    //
+    // Previous implementation used X-Forwarded-For directly, which is
+    // trivially spoofable by clients to bypass rate limits (P0 from
+    // iter-skill 2026-07-01).
     let key = request
-        .headers()
-        .get("x-forwarded-for")
-        .or_else(|| request.headers().get("x-real-ip"))
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("unknown")
-        .to_string();
+        .extensions()
+        .get::<Claims>()
+        .map(|c| format!("user:{}", c.sub))
+        .or_else(|| {
+            request
+                .extensions()
+                .get::<ConnectInfo<std::net::SocketAddr>>()
+                .map(|ci| format!("ip:{}", ci.0.ip()))
+        })
+        .or_else(|| {
+            request
+                .headers()
+                .get("x-forwarded-for")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|s| s.split(',').next())
+                .map(|s| format!("xff:{}", s.trim()))
+        })
+        .unwrap_or_else(|| "unknown".to_string());
 
     if !limiter.check(&key) {
+        tracing::warn!("hamr-api rate limit exceeded for key={}", key);
         return Err(GatewayError::RateLimitExceeded);
     }
     Ok(next.run(request).await)
