@@ -8,6 +8,7 @@ pub struct Config {
     pub app_service_url: String,
     pub jiabu_service_url: String,
     pub rate_limit_per_minute: u32,
+    pub cors_allowed_origins: Vec<String>,
 }
 
 impl Config {
@@ -27,6 +28,35 @@ impl Config {
             rate_limit_per_minute: std::env::var("RATE_LIMIT_PER_MINUTE")
                 .unwrap_or_else(|_| "60".to_string())
                 .parse()?,
+            cors_allowed_origins: parse_origins(
+                &std::env::var("CORS_ALLOWED_ORIGINS").unwrap_or_else(|_| {
+                    // Dev-friendly defaults. Production must override via env.
+                    "http://localhost:3000,http://localhost:5173,https://hamr.top".to_string()
+                }),
+            ),
         })
+    }
+}
+
+fn parse_origins(raw: &str) -> Vec<String> {
+    raw.split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_origins_trims_and_filters_empty() {
+        let out = parse_origins(" http://a , , https://b ,");
+        assert_eq!(out, vec!["http://a", "https://b"]);
+    }
+
+    #[test]
+    fn parse_origins_keeps_single_entry() {
+        assert_eq!(parse_origins("https://only.example"), vec!["https://only.example"]);
     }
 }
