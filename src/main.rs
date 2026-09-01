@@ -1,14 +1,12 @@
-mod config;
-mod errors;
-mod metrics;
-mod middleware;
-mod proxy;
-mod routes;
+// `main.rs` is the binary crate root. To avoid compiling every module
+// twice (once for the library, once for the binary), we pull the
+// modules in from the library crate defined in `lib.rs`. This also
+// makes the integration tests in `tests/` use the exact same code as
+// the running binary.
+use hamr_api_gateway::{config::Config, metrics, routes};
 
 use std::net::SocketAddr;
 use tower_http::cors::{AllowOrigin, Any, CorsLayer};
-
-pub use config::Config;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -40,7 +38,7 @@ async fn main() -> anyhow::Result<()> {
         let parsed: Vec<_> = config
             .cors_allowed_origins
             .iter()
-            .filter_map(|o| o.parse().ok())
+            .filter_map(|o: &String| o.parse().ok())
             .collect();
         AllowOrigin::list(parsed)
     };

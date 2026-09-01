@@ -1,0 +1,111 @@
+# CI gate for hamr-api-gateway.
+#
+# Round-4 (iter-skill 2026-09-01) — establishes the CI gate that
+# round-1 (CORS allowlist) and round-2 (JWT fail-fast, rate-limit TTL)
+# lacked. Before this workflow, the only correctness signal was a
+# manual `cargo test` on the maintainer's laptop. Three lanes:
+#
+#   1. check   — fast `cargo check` over every target (lib, bin, tests,
+#                benches). Catches type/borrow errors in <1min.
+#   2. test    — full `cargo test` including the httpmock integration
+#                tests against an in-process mocked downstream.
+#   3. lint    — `cargo clippy --all-targets -- -D warnings` plus
+#                `cargo fmt --check`. Treats warnings as errors so
+#                drift from the workspace style is caught immediately.
+#
+# Toolchain pinning: `dtolnay/rust-toolchain@stable` keeps builds on
+# whatever the rust-lang stable channel currently points to, which is
+# what the maintainer uses locally. To pin more tightly, swap to a
+# specific channel + the matching `components:` (e.g. clippy, rustfmt).
+#
+# Caching: Swatinem/rust-cache is the standard pattern; it keys on
+# Cargo.lock + toolchain so a Cargo.toml change invalidates the cache
+# automatically. We do NOT add a separate docker-cache key because
+# the docker-compose build is not part of CI yet — round-5 candidate.
+name: CI
+
+on:
+  push:
+    branches: [main, iter-loop-*, fix/**]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs for the same ref. Without this, every push to
+# a feature branch kicks off a fresh runner while the previous one is
+# still warming cargo's index.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: cargo check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry & build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: hamr-api -> target
+
+      - name: cargo check (all targets)
+        run: cargo check --all-targets --locked
+
+  test:
+    name: cargo test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry & build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: hamr-api -> target
+
+      # `JWT_SECRET` is mandatory (round-2 fail-fast); supply a
+      # 32-byte minimum so the unit tests in config::tests that read
+      # env vars don't bail out before reaching the actual assertions.
+      - name: cargo test
+        env:
+          JWT_SECRET: ci-test-secret-with-at-least-32-bytes-of-entropy
+        run: cargo test --all-targets --locked
+
+  lint:
+    name: cargo clippy + fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry & build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: hamr-api -> target
+
+      # `-D warnings` is the aggressive lane: any clippy warning fails
+      # the build. If we ever land a noisy warning, fix the code rather
+      # than `#[allow]`-ing it — the workspace has been warning-free
+      # since round-1 and we want to keep it that way.
+      - name: cargo clippy (all targets, deny warnings)
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: cargo fmt --check
+        run: cargo fmt --all -- --check

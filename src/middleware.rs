@@ -1,5 +1,3 @@
-use std::sync::Arc;
-use std::time::{Duration, Instant};
 use axum::{
     extract::{ConnectInfo, Request, State},
     middleware::Next,
@@ -8,6 +6,8 @@ use axum::{
 use dashmap::DashMap;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use crate::{config::Config, errors::GatewayError};
 
@@ -66,7 +66,8 @@ impl RateLimiter {
     pub fn cleanup_once(&self, max_age: Duration) -> usize {
         let now = Instant::now();
         let before = self.map.len();
-        self.map.retain(|_, (_, last_seen)| now.duration_since(*last_seen) <= max_age);
+        self.map
+            .retain(|_, (_, last_seen)| now.duration_since(*last_seen) <= max_age);
         before - self.map.len()
     }
 

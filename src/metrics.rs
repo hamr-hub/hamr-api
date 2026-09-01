@@ -1,11 +1,7 @@
-use std::time::Instant;
-use axum::{
-    extract::Request,
-    middleware::Next,
-    response::Response,
-};
+use axum::{extract::Request, middleware::Next, response::Response};
 use metrics::{counter, histogram};
 use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
+use std::time::Instant;
 
 pub fn install_recorder() -> PrometheusHandle {
     PrometheusBuilder::new()
@@ -44,19 +40,22 @@ pub async fn metrics_middleware(request: Request, next: Next) -> Response {
         "method" => method.clone(),
         "path" => route.clone(),
         "status" => status.clone()
-    ).increment(1);
+    )
+    .increment(1);
 
     histogram!("http_request_duration_seconds",
         "method" => method.clone(),
         "path" => route.clone()
-    ).record(duration);
+    )
+    .record(duration);
 
     if response.status().is_server_error() {
         counter!("http_errors_total",
             "method" => method.clone(),
             "path" => route.clone(),
             "status" => status.clone()
-        ).increment(1);
+        )
+        .increment(1);
     }
 
     let duration_ms = (duration * 1000.0) as u64;

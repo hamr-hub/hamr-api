@@ -41,8 +41,8 @@ pub async fn proxy_request(
         .await
         .map_err(|_| GatewayError::BadGateway)?;
 
-    let status = StatusCode::from_u16(resp.status().as_u16())
-        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    let status =
+        StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
     let resp_headers = resp.headers().clone();
     let body = resp.bytes().await.map_err(|_| GatewayError::BadGateway)?;
 
@@ -81,10 +81,12 @@ pub async fn forward_to_jiabu(
 
 async fn forward(request: Request, base_url: &str) -> Result<Response, GatewayError> {
     let method_str = request.method().as_str();
-    let method = reqwest::Method::from_bytes(method_str.as_bytes())
-        .map_err(|_| GatewayError::BadGateway)?;
+    let method =
+        reqwest::Method::from_bytes(method_str.as_bytes()).map_err(|_| GatewayError::BadGateway)?;
 
-    let path = request.uri().path_and_query()
+    let path = request
+        .uri()
+        .path_and_query()
         .map(|p| p.as_str())
         .unwrap_or("/");
 

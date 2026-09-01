@@ -101,7 +101,10 @@ mod tests {
 
     #[test]
     fn parse_origins_keeps_single_entry() {
-        assert_eq!(parse_origins("https://only.example"), vec!["https://only.example"]);
+        assert_eq!(
+            parse_origins("https://only.example"),
+            vec!["https://only.example"]
+        );
     }
 
     #[test]
@@ -120,10 +123,7 @@ mod tests {
         let short = "a".repeat(MIN_JWT_SECRET_LEN - 1);
         let err = load_with_jwt(Some(&short)).expect_err("short JWT_SECRET must error");
         let msg = format!("{err:#}");
-        assert!(
-            msg.contains("too short"),
-            "unexpected error message: {msg}"
-        );
+        assert!(msg.contains("too short"), "unexpected error message: {msg}");
         assert!(
             msg.contains(&MIN_JWT_SECRET_LEN.to_string()),
             "error should mention the minimum length"
