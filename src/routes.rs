@@ -9,12 +9,24 @@ use serde_json::json;
 use crate::{
     config::Config,
     metrics::metrics_middleware,
-    middleware::{auth_middleware, rate_limit_middleware, RateLimiter},
+    middleware::{
+        auth_middleware, rate_limit_middleware, RateLimiter, DEFAULT_CLEANUP_INTERVAL,
+        DEFAULT_ENTRY_MAX_AGE,
+    },
     proxy,
 };
 
 pub fn build_router(config: Config, prom_handle: PrometheusHandle) -> Router {
     let limiter = RateLimiter::new(config.rate_limit_per_minute);
+
+    // Background sweep: remove entries that have not been seen for
+    // > DEFAULT_ENTRY_MAX_AGE. Without this, an unbounded stream of
+    // distinct keys (bot traffic, login storms) leaks memory. Round-2
+    // iter-skill 2026-09-01 follow-up to round-1's allowlist fix.
+    let _cleanup = limiter.clone().spawn_cleanup_task(
+        DEFAULT_CLEANUP_INTERVAL,
+        DEFAULT_ENTRY_MAX_AGE,
+    );
 
     let health = Router::new()
         .route("/health", get(health_check))
