@@ -3,6 +3,14 @@ services:
     build: .
     container_name: hamr-api-gateway
     restart: unless-stopped
+    # Graceful shutdown (iter-skill 2026-09-01 round-5): the gateway
+    # traps SIGTERM and drains in-flight requests before exiting.
+    # `stop_grace_period` is Docker's analog of Kubernetes'
+    # `terminationGracePeriodSeconds`: how long docker-compose waits
+    # between sending SIGTERM and SIGKILL. 30s matches the round-5
+    # k8s recommendation and is comfortably above any plausible
+    # in-flight request budget for this proxy.
+    stop_grace_period: 30s
     environment:
       PORT: ${PORT:-8090}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}

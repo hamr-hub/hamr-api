@@ -32,10 +32,14 @@ pub fn build_router(config: Config, prom_handle: PrometheusHandle) -> Router {
         .clone()
         .spawn_cleanup_task(DEFAULT_CLEANUP_INTERVAL, DEFAULT_ENTRY_MAX_AGE);
 
+    // readiness_check 以 `Extension<Config>` 读取下游地址；`.with_state(config)`
+    // 只注入 State（供 auth/限流中间件用），不会顺带塞进 Extension。少了这层
+    // Extension 时 axum 注入失败，/readyz 会退化成 500 而非契约要求的 503。
     let health = Router::new()
         .route("/health", get(health_check))
         .route("/readyz", get(readiness_check))
-        .route("/metrics", get(prometheus_metrics));
+        .route("/metrics", get(prometheus_metrics))
+        .layer(Extension(config.clone()));
 
     let public = Router::new()
         .route(
