@@ -38,9 +38,9 @@ impl Config {
                 .parse()?,
             jwt_secret,
             account_service_url: std::env::var("ACCOUNT_SERVICE_URL")
-                .unwrap_or_else(|_| "http://hamr-account-api:8080".to_string()),
+                .unwrap_or_else(|_| "http://hamr-account-api:3001".to_string()),
             app_service_url: std::env::var("APP_SERVICE_URL")
-                .unwrap_or_else(|_| "http://hamr-app-api:8081".to_string()),
+                .unwrap_or_else(|_| "http://hamr-app-api:3002".to_string()),
             jiabu_service_url: std::env::var("JIABU_SERVICE_URL")
                 .unwrap_or_else(|_| "http://hamr-jiabu-api:8082".to_string()),
             rate_limit_per_minute: std::env::var("RATE_LIMIT_PER_MINUTE")
