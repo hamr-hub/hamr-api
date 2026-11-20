@@ -62,24 +62,33 @@ pub async fn forward_to_account(
     State(config): State<Config>,
     request: Request,
 ) -> Result<Response, GatewayError> {
-    forward(request, &config.account_service_url).await
+    forward(
+        request,
+        &config.account_service_url,
+        Some("/api/v1/account/"),
+    )
+    .await
 }
 
 pub async fn forward_to_app(
     State(config): State<Config>,
     request: Request,
 ) -> Result<Response, GatewayError> {
-    forward(request, &config.app_service_url).await
+    forward(request, &config.app_service_url, None).await
 }
 
 pub async fn forward_to_jiabu(
     State(config): State<Config>,
     request: Request,
 ) -> Result<Response, GatewayError> {
-    forward(request, &config.jiabu_service_url).await
+    forward(request, &config.jiabu_service_url, Some("/api/v1/jiabu/")).await
 }
 
-async fn forward(request: Request, base_url: &str) -> Result<Response, GatewayError> {
+async fn forward(
+    request: Request,
+    base_url: &str,
+    gateway_prefix: Option<&str>,
+) -> Result<Response, GatewayError> {
     let method_str = request.method().as_str();
     let method =
         reqwest::Method::from_bytes(method_str.as_bytes()).map_err(|_| GatewayError::BadGateway)?;
@@ -90,7 +99,11 @@ async fn forward(request: Request, base_url: &str) -> Result<Response, GatewayEr
         .map(|p| p.as_str())
         .unwrap_or("/");
 
-    let target = format!("{}{}", base_url, path);
+    // Rewrite the leading prefix on the raw URI so the suffix keeps its encoding and query.
+    let target = match gateway_prefix.and_then(|prefix| path.strip_prefix(prefix)) {
+        Some(suffix) => format!("{base_url}/api/v1/{suffix}"),
+        None => format!("{base_url}{path}"),
+    };
 
     let headers = request.headers().clone();
     let body = axum::body::to_bytes(request.into_body(), 10 * 1024 * 1024)

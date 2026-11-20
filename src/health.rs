@@ -3,7 +3,7 @@
 //! `proxy::proxy_request` only knows the upstream URL; it has no view of
 //! whether the downstream service is actually responding. The `/readyz`
 //! endpoint here gives Kubernetes (or any external probe) a single
-//! aggregate answer derived from per-backend `GET /health` checks.
+//! aggregate answer derived from each backend's readiness or health endpoint.
 //!
 //! Round-4 iter-skill 2026-09-01 follow-up to round-1/round-2 hardening:
 //! previously the gateway exposed only `GET /health` (liveness), with no
@@ -33,19 +33,16 @@ pub struct BackendHealth {
     pub error: String,
 }
 
-/// Probe one backend's `/health` endpoint. A 2xx response is healthy;
-/// anything else (non-2xx, timeout, connection refused, DNS failure) is
-/// not. We deliberately do NOT consider 5xx "healthy" — a downstream
-/// that returns 500 should fail the readiness probe.
+/// Probe the backend's configured endpoint. Only a 2xx response within
+/// `timeout` counts as healthy.
 pub async fn probe_backend(
     client: &Client,
     name: &'static str,
     base_url: &str,
+    path: &str,
     timeout: Duration,
 ) -> BackendHealth {
-    // Trim trailing slash to avoid `//health`.
-    let base = base_url.trim_end_matches('/');
-    let target = format!("{}/health", base);
+    let target = format!("{}{path}", base_url.trim_end_matches('/'));
 
     let start = Instant::now();
     let result = client.get(&target).timeout(timeout).send().await;
@@ -93,12 +90,12 @@ pub struct ReadinessReport {
 /// k8s readiness churn.
 pub async fn aggregate(
     client: &Client,
-    backends: &[(&'static str, &str)],
+    backends: &[(&'static str, &str, &str)],
     timeout: Duration,
 ) -> ReadinessReport {
     let mut results = Vec::with_capacity(backends.len());
-    for (name, url) in backends {
-        results.push(probe_backend(client, name, url, timeout).await);
+    for &(name, url, path) in backends {
+        results.push(probe_backend(client, name, url, path, timeout).await);
     }
     let healthy = results.iter().all(|b| b.healthy);
     ReadinessReport {
@@ -129,6 +126,7 @@ mod tests {
             &client,
             "account",
             "http://127.0.0.1:1",
+            "/readyz",
             Duration::from_millis(50),
         )
         .await;
@@ -167,6 +165,7 @@ mod tests {
             &client,
             "app",
             &format!("http://{}", addr),
+            "/api/v1/health",
             Duration::from_millis(500),
         )
         .await;
@@ -183,8 +182,8 @@ mod tests {
         let report = aggregate(
             &client,
             &[
-                ("account", "http://127.0.0.1:1"),
-                ("app", "http://127.0.0.1:1"),
+                ("account", "http://127.0.0.1:1", "/readyz"),
+                ("app", "http://127.0.0.1:1", "/api/v1/health"),
             ],
             Duration::from_millis(50),
         )

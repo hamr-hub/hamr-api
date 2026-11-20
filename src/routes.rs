@@ -114,13 +114,13 @@ async fn readiness_check(Extension(config): Extension<Config>) -> Response {
         }
     };
 
-    let backends: &[(&'static str, &str)] = &[
-        ("account", config.account_service_url.as_str()),
-        ("app", config.app_service_url.as_str()),
-        ("jiabu", config.jiabu_service_url.as_str()),
+    let backends = [
+        ("account", config.account_service_url.as_str(), "/readyz"),
+        ("app", config.app_service_url.as_str(), "/api/v1/health"),
+        ("jiabu", config.jiabu_service_url.as_str(), "/readyz"),
     ];
 
-    let report = health::aggregate(&client, backends, Duration::from_secs(2)).await;
+    let report = health::aggregate(&client, &backends, Duration::from_secs(2)).await;
 
     if report.healthy {
         (StatusCode::OK, Json(report)).into_response()
