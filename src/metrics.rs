@@ -9,17 +9,15 @@
 //! to tell "auth login has more 401s than account protected reads".
 //!
 //! Label design (cardinality-bounded):
-//!   * `route`   — `axum::extract::MatchedPath` value (e.g.
-//!                 `/api/v1/account/*path`). Bounded by the route table
-//!                 so adding new routes is the only way to grow this
-//!                 dimension. Falls back to `unmatched` for 404s so a
-//!                 scanner hitting random URLs cannot blow up the
-//!                 series count.
-//!   * `service` — coarse bucket for Grafana slicing. Fixed enum:
-//!                 `account-auth`, `account`, `app`, `jiabu`, `admin`
-//!                 (health/readyz/metrics), `other`.
-//!   * `method`  — GET/POST/etc. Bounded by HTTP.
-//!   * `status`  — 200/401/502/... Bounded by HTTP.
+//! - `route` — `axum::extract::MatchedPath` value (e.g. `/api/v1/account/*path`).
+//!   Bounded by the route table so adding new routes is the only way to grow
+//!   this dimension. Falls back to `unmatched` for 404s so a scanner hitting
+//!   random URLs cannot blow up the series count.
+//! - `service` — coarse bucket for Grafana slicing. Fixed enum:
+//!   `account-auth`, `account`, `app`, `jiabu`, `admin` (health/readyz/metrics),
+//!   `other`.
+//! - `method` — GET/POST/etc. Bounded by HTTP.
+//! - `status` — 200/401/502/... Bounded by HTTP.
 //!
 //! The raw URI path is preserved in `tracing` logs (where it does not
 //! affect Prometheus cardinality) so operators can still grep for
