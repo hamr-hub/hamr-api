@@ -155,9 +155,18 @@ mod tests {
     /// paths and asserts they all collapse to one bucket.
     #[test]
     fn classify_service_buckets_account_auth_separately() {
-        assert_eq!(classify_service("/api/v1/account/auth/login"), "account-auth");
-        assert_eq!(classify_service("/api/v1/account/auth/register"), "account-auth");
-        assert_eq!(classify_service("/api/v1/account/auth/refresh"), "account-auth");
+        assert_eq!(
+            classify_service("/api/v1/account/auth/login"),
+            "account-auth"
+        );
+        assert_eq!(
+            classify_service("/api/v1/account/auth/register"),
+            "account-auth"
+        );
+        assert_eq!(
+            classify_service("/api/v1/account/auth/refresh"),
+            "account-auth"
+        );
     }
 
     #[test]
@@ -167,7 +176,10 @@ mod tests {
         assert_eq!(classify_service("/api/v1/account/*path"), "account");
         assert_eq!(classify_service("/api/v1/account/users"), "account");
         assert_eq!(classify_service("/api/v1/account/users/123"), "account");
-        assert_eq!(classify_service("/api/v1/account/settings/profile"), "account");
+        assert_eq!(
+            classify_service("/api/v1/account/settings/profile"),
+            "account"
+        );
     }
 
     #[test]
@@ -201,7 +213,11 @@ mod tests {
         // The test pins the contract: ANY unknown path -> "other".
         for i in 0..1000 {
             let p = format!("/scanner-path-{i}");
-            assert_eq!(classify_service(&p), "other", "path {p} should bucket to other");
+            assert_eq!(
+                classify_service(&p),
+                "other",
+                "path {p} should bucket to other"
+            );
         }
     }
 
@@ -212,6 +228,9 @@ mod tests {
         // not "account". A future refactor that reorders branches
         // breaks this test loudly instead of silently mixing auth
         // 401s with account 200s in the dashboard.
-        assert_eq!(classify_service("/api/v1/account/auth/login"), "account-auth");
+        assert_eq!(
+            classify_service("/api/v1/account/auth/login"),
+            "account-auth"
+        );
     }
 }
